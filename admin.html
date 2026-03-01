@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Panel — साप्ताहिक श्रीमत दर्शन</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600;700&family=Tiro+Devanagari+Marathi&display=swap" rel="stylesheet">
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCWfSzolXycX5WucKxjZgp5r4uaEZn4K2k",
+      authDomain: "weekly-shrimat-darshan.firebaseapp.com",
+      projectId: "weekly-shrimat-darshan",
+      storageBucket: "weekly-shrimat-darshan.appspot.com",
+      messagingSenderId: "224774646216",
+      appId: "1:224774646216:web:b5421d51838b8ff71178fd",
+      measurementId: "G-K8F78L2ZCC"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    onAuthStateChanged(auth, user => {
+      if(user) {
+        document.getElementById('loginSection').style.display='none';
+        document.getElementById('adminPanel').style.display='block';
+        document.getElementById('userEmail').textContent = user.email;
+        loadAll();
+      } else {
+        document.getElementById('loginSection').style.display='flex';
+        document.getElementById('adminPanel').style.display='none';
+      }
+    });
+
+    window.doLogin = async () => {
+      const email = document.getElementById('loginEmail').value;
+      const pass = document.getElementById('loginPass').value;
+      const err = document.getElementById('loginError');
+      err.style.display='none';
+      try {
+        await signInWithEmailAndPassword(auth, email, pass);
+      } catch(e) {
+        err.textContent = '❌ चुकीचा Email किंवा Password';
+        err.style.display = 'block';
+      }
+    };
+
+    window.doLogout = () => signOut(auth);
+
+    function getDate() {
+      const today = new Date();
+      const months = ['जानेवारी','फेब्रुवारी','मार्च','एप्रिल','मे','जून','जुलै','ऑगस्ट','सप्टेंबर','ऑक्टोबर','नोव्हेंबर','डिसेंबर'];
+      return `${today.getDate()} ${months[today.getMonth()]} ${today.getFullYear()}`;
+    }
+
+    // ===== NEWS =====
+    window.addNews = async () => {
+      const title = document.getElementById('nTitle').value.trim();
+      const content = document.getElementById('nContent').value.trim();
+      const tag = document.getElementById('nTag').value.trim() || 'बातमी';
+      const author = document.getElementById('nAuthor').value.trim() || 'संपादक';
+      const imageUrl = document.getElementById('nImage').value.trim();
+      if(!title||!content){ alert('शीर्षक आणि मजकूर आवश्यक आहे'); return; }
+      const btn = document.getElementById('nBtn');
+      btn.textContent='जोडत आहे...'; btn.disabled=true;
+      await addDoc(collection(db,'news'), {title,content,tag,author,imageUrl,date:getDate(),createdAt:serverTimestamp()});
+      ['nTitle','nContent','nTag','nAuthor','nImage'].forEach(id=>document.getElementById(id).value='');
+      btn.textContent='✅ बातमी जोडा'; btn.disabled=false;
+      showToast('बातमी यशस्वीरित्या जोडली!');
+      loadNews();
+    };
+
+    // ===== EDITORIAL =====
+    window.addEditorial = async () => {
+      const title = document.getElementById('eTitle').value.trim();
+      const content = document.getElementById('eContent').value.trim();
+      const author = document.getElementById('eAuthor').value.trim() || 'संपादक';
+      const imageUrl = document.getElementById('eImage').value.trim();
+      if(!title||!content){ alert('शीर्षक आणि मजकूर आवश्यक आहे'); return; }
+      const btn = document.getElementById('eBtn');
+      btn.textContent='जोडत आहे...'; btn.disabled=true;
+      await addDoc(collection(db,'editorial'), {title,content,author,imageUrl,date:getDate(),createdAt:serverTimestamp()});
+      ['eTitle','eContent','eAuthor','eImage'].forEach(id=>document.getElementById(id).value='');
+      btn.textContent='✅ संपादकीय जोडा'; btn.disabled=false;
+      showToast('संपादकीय यशस्वीरित्या जोडले!');
+      loadEditorial();
+    };
+
+    // ===== ARTICLES =====
+    window.addArticle = async () => {
+      const title = document.getElementById('aTitle').value.trim();
+      const content = document.getElementById('aContent').value.trim();
+      const author = document.getElementById('aAuthor').value.trim() || 'संपादक';
+      const imageUrl = document.getElementById('aImage').value.trim();
+      if(!title||!content){ alert('शीर्षक आणि मजकूर आवश्यक आहे'); return; }
+      const btn = document.getElementById('aBtn');
+      btn.textContent='जोडत आहे...'; btn.disabled=true;
+      await addDoc(collection(db,'articles'), {title,content,author,imageUrl,date:getDate(),createdAt:serverTimestamp()});
+      ['aTitle','aContent','aAuthor','aImage'].forEach(id=>document.getElementById(id).value='');
+      btn.textContent='✅ लेख जोडा'; btn.disabled=false;
+      showToast('लेख यशस्वीरित्या जोडला!');
+      loadArticles();
+    };
+
+    // ===== PAPERS =====
+    window.addPaper = async () => {
+      const title = document.getElementById('pTitle').value.trim();
+      const pdfUrl = document.getElementById('pUrl').value.trim();
+      const type = document.getElementById('pType').value;
+      if(!title||!pdfUrl){ alert('शीर्षक आणि PDF Link आवश्यक आहे'); return; }
+      const btn = document.getElementById('pBtn');
+      btn.textContent='जोडत आहे...'; btn.disabled=true;
+      await addDoc(collection(db,'papers'), {title,pdfUrl,type,date:getDate(),createdAt:serverTimestamp()});
+      ['pTitle','pUrl'].forEach(id=>document.getElementById(id).value='');
+      btn.textContent='✅ PDF जोडा'; btn.disabled=false;
+      showToast('PDF यशस्वीरित्या जोडला!');
+      loadPapers();
+    };
+
+    // ===== DELETE =====
+    window.deleteItem = async (collName, id) => {
+      if(!confirm('हे कायमचे delete करायचे आहे का?')) return;
+      await deleteDoc(doc(db, collName, id));
+      showToast('यशस्वीरित्या delete केले!');
+      loadAll();
+    };
+
+    async function loadAll() { loadNews(); loadEditorial(); loadArticles(); loadPapers(); }
+
+    async function loadNews() {
+      const q = query(collection(db,'news'), orderBy('createdAt','desc'));
+      const snap = await getDocs(q);
+      const c = document.getElementById('newsList');
+      c.innerHTML = '';
+      if(snap.empty){ c.innerHTML='<p class="empty">अजून कोणतीही बातमी नाही.</p>'; return; }
+      snap.forEach(d => {
+        const data = d.data();
+        const img = data.imageUrl ? `<img src="${data.imageUrl}" class="list-thumb" onerror="this.style.display='none'">` : '<div class="list-thumb-empty">📷</div>';
+        c.innerHTML += `<div class="list-item">${img}<div class="item-info"><span class="item-tag">${data.tag||'बातमी'}</span><strong>${data.title}</strong><small>${data.date||''} — ${data.author||''}</small></div><button class="del-btn" onclick="deleteItem('news','${d.id}')">🗑️ Delete</button></div>`;
+      });
+    }
+
+    async function loadEditorial() {
+      const q = query(collection(db,'editorial'), orderBy('createdAt','desc'));
+      const snap = await getDocs(q);
+      const c = document.getElementById('editorialList');
+      c.innerHTML = '';
+      if(snap.empty){ c.innerHTML='<p class="empty">अजून कोणतेही संपादकीय नाही.</p>'; return; }
+      snap.forEach(d => {
+        const data = d.data();
+        const img = data.imageUrl ? `<img src="${data.imageUrl}" class="list-thumb" onerror="this.style.display='none'">` : '<div class="list-thumb-empty">📷</div>';
+        c.innerHTML += `<div class="list-item">${img}<div class="item-info"><span class="item-tag gold-tag">संपादकीय</span><strong>${data.title}</strong><small>${data.date||''} — ${data.author||''}</small></div><button class="del-btn" onclick="deleteItem('editorial','${d.id}')">🗑️ Delete</button></div>`;
+      });
+    }
+
+    async function loadArticles() {
+      const q = query(collection(db,'articles'), orderBy('createdAt','desc'));
+      const snap = await getDocs(q);
+      const c = document.getElementById('articlesList');
+      c.innerHTML = '';
+      if(snap.empty){ c.innerHTML='<p class="empty">अजून कोणताही लेख नाही.</p>'; return; }
+      snap.forEach(d => {
+        const data = d.data();
+        const img = data.imageUrl ? `<img src="${data.imageUrl}" class="list-thumb" onerror="this.style.display='none'">` : '<div class="list-thumb-empty">📷</div>';
+        c.innerHTML += `<div class="list-item">${img}<div class="item-info"><strong>${data.title}</strong><small>${data.date||''} — ${data.author||''}</small></div><button class="del-btn" onclick="deleteItem('articles','${d.id}')">🗑️ Delete</button></div>`;
+      });
+    }
+
+    async function loadPapers() {
+      const q = query(collection(db,'papers'), orderBy('createdAt','desc'));
+      const snap = await getDocs(q);
+      const c = document.getElementById('papersList');
+      c.innerHTML = '';
+      if(snap.empty){ c.innerHTML='<p class="empty">अजून कोणताही पेपर नाही.</p>'; return; }
+      snap.forEach(d => {
+        const data = d.data();
+        c.innerHTML += `<div class="list-item"><div class="list-thumb-empty">📄</div><div class="item-info"><span class="item-tag ${data.type==='new'?'new-tag':'old-tag'}">${data.type==='new'?'नवीन':'जुना'}</span><strong>${data.title}</strong><small>${data.date||''} | <a href="${data.pdfUrl}" target="_blank">PDF पाहा ↗</a></small></div><button class="del-btn" onclick="deleteItem('papers','${d.id}')">🗑️ Delete</button></div>`;
+      });
+    }
+
+    window.showToast = (msg) => {
+      const t = document.getElementById('toast');
+      t.textContent = '✅ '+msg;
+      t.classList.add('show');
+      setTimeout(()=>t.classList.remove('show'),3000);
+    };
+  </script>
+
+  <style>
+    :root { --saffron:#E8670A; --deep:#1A0A00; --gold:#C9900A; --cream:#FDF6EC; --light:#FFF8F0; --text:#2D1500; --muted:#7A5C3A; }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Noto Sans Devanagari',sans-serif; background:#f0f4f8; color:var(--text); min-height:100vh; }
+
+    /* LOGIN */
+    #loginSection { display:flex; align-items:center; justify-content:center; min-height:100vh; background:var(--deep); }
+    .login-box { background:white; border-radius:8px; padding:2.5rem; width:100%; max-width:380px; border-top:5px solid var(--saffron); box-shadow:0 20px 60px rgba(0,0,0,0.3); }
+    .login-box h2 { font-family:'Tiro Devanagari Marathi',serif; color:var(--deep); margin-bottom:0.3rem; font-size:1.5rem; }
+    .login-box p { color:var(--muted); font-size:0.85rem; margin-bottom:1.5rem; }
+    .login-box input { width:100%; padding:0.75rem 1rem; border:1px solid #ddd; border-radius:4px; margin-bottom:1rem; font-family:'Noto Sans Devanagari',sans-serif; font-size:0.9rem; }
+    .login-box input:focus { outline:none; border-color:var(--saffron); }
+    .login-btn { width:100%; background:var(--saffron); color:white; border:none; padding:0.85rem; border-radius:4px; font-size:1rem; cursor:pointer; font-family:'Noto Sans Devanagari',sans-serif; font-weight:700; transition:0.2s; }
+    .login-btn:hover { background:var(--gold); }
+    #loginError { color:#c0392b; font-size:0.85rem; margin-top:0.5rem; display:none; }
+
+    /* ADMIN */
+    #adminPanel { display:none; }
+    .admin-header { background:var(--deep); color:var(--gold); padding:1rem 2rem; display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid var(--saffron); }
+    .admin-header h1 { font-family:'Tiro Devanagari Marathi',serif; font-size:1.2rem; }
+    .admin-header-right { display:flex; align-items:center; gap:1rem; }
+    .admin-header-right small { color:#aaa; font-size:0.8rem; }
+    .logout-btn { background:transparent; border:1px solid var(--saffron); color:var(--saffron); padding:0.4rem 1rem; border-radius:4px; cursor:pointer; font-family:'Noto Sans Devanagari',sans-serif; transition:0.2s; }
+    .logout-btn:hover { background:var(--saffron); color:white; }
+
+    .admin-tabs { background:white; border-bottom:2px solid #e0e0e0; display:flex; padding:0 2rem; overflow-x:auto; }
+    .admin-tab { padding:1rem 1.3rem; cursor:pointer; font-weight:600; color:#888; border-bottom:3px solid transparent; margin-bottom:-2px; transition:0.2s; font-size:0.88rem; white-space:nowrap; }
+    .admin-tab.active { color:var(--saffron); border-bottom-color:var(--saffron); }
+
+    .admin-content { max-width:900px; margin:2rem auto; padding:0 1.5rem; }
+    .tab-panel { display:none; }
+    .tab-panel.active { display:block; }
+
+    /* IMAGE PREVIEW */
+    .img-preview-wrap { margin-top:0.5rem; }
+    .img-preview { max-width:200px; max-height:120px; object-fit:cover; border-radius:4px; border:1px solid #ddd; display:none; }
+
+    /* FORMS */
+    .form-card { background:white; border-radius:6px; padding:2rem; border:1px solid #e0e0e0; margin-bottom:2rem; box-shadow:0 2px 8px rgba(0,0,0,0.05); }
+    .form-card h3 { font-family:'Tiro Devanagari Marathi',serif; color:var(--deep); margin-bottom:1.5rem; font-size:1.2rem; border-left:4px solid var(--saffron); padding-left:0.8rem; }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem; }
+    .fg { margin-bottom:1rem; }
+    .fg label { display:block; font-size:0.85rem; color:var(--muted); margin-bottom:0.4rem; font-weight:600; }
+    .fg input, .fg textarea, .fg select { width:100%; padding:0.7rem 1rem; border:1px solid #ddd; border-radius:4px; font-family:'Noto Sans Devanagari',sans-serif; font-size:0.9rem; background:#fafafa; transition:border-color 0.2s; }
+    .fg input:focus, .fg textarea:focus, .fg select:focus { outline:none; border-color:var(--saffron); background:white; }
+    .fg textarea { min-height:110px; resize:vertical; }
+    .fg .hint { font-size:0.75rem; color:#aaa; margin-top:0.3rem; }
+    .add-btn { background:var(--saffron); color:white; border:none; padding:0.75rem 2rem; border-radius:4px; cursor:pointer; font-family:'Noto Sans Devanagari',sans-serif; font-size:0.95rem; font-weight:700; transition:0.2s; }
+    .add-btn:hover { background:var(--gold); }
+    .add-btn:disabled { background:#ccc; cursor:not-allowed; }
+
+    /* LIST */
+    .list-card { background:white; border-radius:6px; padding:1.5rem; border:1px solid #e0e0e0; box-shadow:0 2px 8px rgba(0,0,0,0.05); }
+    .list-card h3 { font-family:'Tiro Devanagari Marathi',serif; color:var(--deep); margin-bottom:1rem; font-size:1.1rem; border-left:4px solid var(--gold); padding-left:0.8rem; }
+    .list-item { display:flex; align-items:center; gap:1rem; padding:0.8rem; border:1px solid #f0f0f0; border-radius:4px; margin-bottom:0.6rem; background:#fafafa; }
+    .list-thumb { width:60px; height:50px; object-fit:cover; border-radius:4px; min-width:60px; border:1px solid #eee; }
+    .list-thumb-empty { width:60px; height:50px; min-width:60px; background:#f5f5f5; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:1.5rem; border:1px solid #eee; }
+    .item-info { flex:1; }
+    .item-info strong { display:block; font-size:0.9rem; color:var(--deep); margin-bottom:0.2rem; }
+    .item-info small { font-size:0.75rem; color:#aaa; }
+    .item-info a { color:var(--saffron); }
+    .item-tag { display:inline-block; background:var(--saffron); color:white; font-size:0.65rem; padding:1px 8px; border-radius:2px; margin-bottom:0.3rem; font-weight:700; }
+    .gold-tag { background:var(--gold); }
+    .new-tag { background:#27ae60; }
+    .old-tag { background:#7f8c8d; }
+    .del-btn { background:#fff0f0; color:#c0392b; border:1px solid #fcc; padding:0.35rem 0.7rem; border-radius:4px; cursor:pointer; font-size:0.78rem; white-space:nowrap; transition:0.2s; }
+    .del-btn:hover { background:#c0392b; color:white; }
+    .empty { color:#aaa; text-align:center; padding:1.5rem; font-size:0.9rem; }
+
+    /* TOAST */
+    #toast { position:fixed; bottom:2rem; right:2rem; background:var(--deep); color:var(--gold); padding:0.8rem 1.5rem; border-radius:6px; font-size:0.9rem; border:1px solid var(--gold); transform:translateY(100px); opacity:0; transition:all 0.3s; z-index:9999; }
+    #toast.show { transform:translateY(0); opacity:1; }
+
+    /* IMAGE LINK INFO BOX */
+    .info-box { background:#fff8e1; border:1px solid #ffe082; border-radius:6px; padding:1rem 1.2rem; margin-bottom:1.5rem; font-size:0.85rem; color:#5d4037; line-height:1.7; }
+    .info-box strong { color:#e65100; }
+
+    @media(max-width:600px) { .form-row { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginSection">
+  <div class="login-box">
+    <h2>🔐 Admin Login</h2>
+    <p>साप्ताहिक श्रीमत दर्शन — Admin Panel</p>
+    <input type="email" id="loginEmail" placeholder="Email address">
+    <input type="password" id="loginPass" placeholder="Password" onkeypress="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" onclick="doLogin()">🚀 Login करा</button>
+    <p id="loginError"></p>
+  </div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div id="adminPanel">
+  <div class="admin-header">
+    <h1>📰 Admin Panel — श्रीमत दर्शन</h1>
+    <div class="admin-header-right">
+      <small id="userEmail"></small>
+      <button class="logout-btn" onclick="doLogout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="admin-tabs">
+    <div class="admin-tab active" onclick="switchTab('news',this)">📢 बातम्या</div>
+    <div class="admin-tab" onclick="switchTab('editorial',this)">✒️ संपादकीय</div>
+    <div class="admin-tab" onclick="switchTab('articles',this)">📝 लेख</div>
+    <div class="admin-tab" onclick="switchTab('papers',this)">📄 PDF पेपर्स</div>
+  </div>
+
+  <div class="admin-content">
+
+    <!-- NEWS TAB -->
+    <div class="tab-panel active" id="tab-news">
+      <div class="form-card">
+        <h3>नवीन बातमी जोडा</h3>
+        <div class="info-box">📸 <strong>फोटो कसा टाकायचा:</strong> Google Drive वर फोटो upload करा → Share → Anyone with link → Link copy करा → खाली paste करा.</div>
+        <div class="form-row">
+          <div class="fg"><label>बातमीचे शीर्षक *</label><input type="text" id="nTitle" placeholder="शीर्षक लिहा"></div>
+          <div class="fg"><label>Tag</label><input type="text" id="nTag" placeholder="मुख्य बातमी / विशेष / इतर"></div>
+        </div>
+        <div class="fg"><label>मजकूर *</label><textarea id="nContent" placeholder="बातमीचा संपूर्ण मजकूर येथे लिहा..."></textarea></div>
+        <div class="form-row">
+          <div class="fg"><label>लेखक</label><input type="text" id="nAuthor" placeholder="संपादक मंडळ"></div>
+          <div class="fg">
+            <label>फोटो Link (Image URL)</label>
+            <input type="url" id="nImage" placeholder="https://drive.google.com/..." oninput="previewImg('nImage','nPreview')">
+            <div class="img-preview-wrap"><img id="nPreview" class="img-preview"></div>
+            <p class="hint">Google Drive / कोणताही Direct Image Link</p>
+          </div>
+        </div>
+        <button class="add-btn" id="nBtn" onclick="addNews()">✅ बातमी जोडा</button>
+      </div>
+      <div class="list-card">
+        <h3>सर्व बातम्या</h3>
+        <div id="newsList"><p class="empty">लोड होत आहे...</p></div>
+      </div>
+    </div>
+
+    <!-- EDITORIAL TAB -->
+    <div class="tab-panel" id="tab-editorial">
+      <div class="form-card">
+        <h3>नवीन संपादकीय जोडा</h3>
+        <div class="info-box">📸 <strong>फोटो कसा टाकायचा:</strong> Google Drive वर फोटो upload करा → Share → Anyone with link → Link copy करा → खाली paste करा.</div>
+        <div class="fg"><label>संपादकीयचे शीर्षक *</label><input type="text" id="eTitle" placeholder="शीर्षक लिहा"></div>
+        <div class="fg"><label>मजकूर *</label><textarea id="eContent" placeholder="संपूर्ण संपादकीय येथे लिहा..." style="min-height:140px"></textarea></div>
+        <div class="form-row">
+          <div class="fg"><label>लेखक / संपादक</label><input type="text" id="eAuthor" placeholder="मुख्य संपादक"></div>
+          <div class="fg">
+            <label>फोटो Link (Image URL)</label>
+            <input type="url" id="eImage" placeholder="https://drive.google.com/..." oninput="previewImg('eImage','ePreview')">
+            <div class="img-preview-wrap"><img id="ePreview" class="img-preview"></div>
+            <p class="hint">Google Drive / कोणताही Direct Image Link</p>
+          </div>
+        </div>
+        <button class="add-btn" id="eBtn" onclick="addEditorial()">✅ संपादकीय जोडा</button>
+      </div>
+      <div class="list-card">
+        <h3>सर्व संपादकीय</h3>
+        <div id="editorialList"><p class="empty">लोड होत आहे...</p></div>
+      </div>
+    </div>
+
+    <!-- ARTICLES TAB -->
+    <div class="tab-panel" id="tab-articles">
+      <div class="form-card">
+        <h3>नवीन लेख जोडा</h3>
+        <div class="info-box">📸 <strong>फोटो कसा टाकायचा:</strong> Google Drive वर फोटो upload करा → Share → Anyone with link → Link copy करा → खाली paste करा.</div>
+        <div class="fg"><label>लेखाचे शीर्षक *</label><input type="text" id="aTitle" placeholder="शीर्षक लिहा"></div>
+        <div class="fg"><label>लेखाचा मजकूर *</label><textarea id="aContent" placeholder="संपूर्ण लेख येथे लिहा..." style="min-height:140px"></textarea></div>
+        <div class="form-row">
+          <div class="fg"><label>लेखक</label><input type="text" id="aAuthor" placeholder="लेखकाचे नाव"></div>
+          <div class="fg">
+            <label>फोटो Link (Image URL)</label>
+            <input type="url" id="aImage" placeholder="https://drive.google.com/..." oninput="previewImg('aImage','aPreview')">
+            <div class="img-preview-wrap"><img id="aPreview" class="img-preview"></div>
+            <p class="hint">Google Drive / कोणताही Direct Image Link</p>
+          </div>
+        </div>
+        <button class="add-btn" id="aBtn" onclick="addArticle()">✅ लेख जोडा</button>
+      </div>
+      <div class="list-card">
+        <h3>सर्व लेख</h3>
+        <div id="articlesList"><p class="empty">लोड होत आहे...</p></div>
+      </div>
+    </div>
+
+    <!-- PAPERS TAB -->
+    <div class="tab-panel" id="tab-papers">
+      <div class="form-card">
+        <h3>नवीन PDF पेपर जोडा</h3>
+        <div class="info-box">📄 <strong>PDF कसे टाकायचे:</strong> Google Drive वर PDF upload करा → Share → Anyone with link → Link copy करा → खाली paste करा.</div>
+        <div class="form-row">
+          <div class="fg"><label>पेपरचे शीर्षक *</label><input type="text" id="pTitle" placeholder="उदा. फेब्रुवारी अंक २०२५"></div>
+          <div class="fg"><label>प्रकार *</label>
+            <select id="pType"><option value="new">नवीन पेपर</option><option value="old">जुना पेपर</option></select>
+          </div>
+        </div>
+        <div class="fg">
+          <label>PDF Link *</label>
+          <input type="url" id="pUrl" placeholder="https://drive.google.com/file/d/XXXXX/view?usp=sharing">
+          <p class="hint">Google Drive वरील PDF चा Shareable Link</p>
+        </div>
+        <button class="add-btn" id="pBtn" onclick="addPaper()">✅ PDF जोडा</button>
+      </div>
+      <div class="list-card">
+        <h3>सर्व पेपर्स</h3>
+        <div id="papersList"><p class="empty">लोड होत आहे...</p></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  function switchTab(name, el) {
+    document.querySelectorAll('.tab-panel').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.admin-tab').forEach(t=>t.classList.remove('active'));
+    document.getElementById('tab-'+name).classList.add('active');
+    el.classList.add('active');
+  }
+
+  function previewImg(inputId, previewId) {
+    const url = document.getElementById(inputId).value.trim();
+    const img = document.getElementById(previewId);
+    if(url) {
+      img.src = url;
+      img.style.display = 'block';
+      img.onerror = () => img.style.display = 'none';
+    } else {
+      img.style.display = 'none';
+    }
+  }
+</script>
+</body>
+</html>

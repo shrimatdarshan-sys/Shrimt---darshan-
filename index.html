@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>साप्ताहिक श्रीमत दर्शन</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Tiro+Devanagari+Marathi:ital@0;1&family=Playfair+Display:wght@700;900&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCWfSzolXycX5WucKxjZgp5r4uaEZn4K2k",
+      authDomain: "weekly-shrimat-darshan.firebaseapp.com",
+      projectId: "weekly-shrimat-darshan",
+      storageBucket: "weekly-shrimat-darshan.appspot.com",
+      messagingSenderId: "224774646216",
+      appId: "1:224774646216:web:b5421d51838b8ff71178fd",
+      measurementId: "G-K8F78L2ZCC"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    window.addEventListener('load', async () => {
+      await loadNews();
+      await loadEditorial();
+      await loadArticles();
+      await loadPapers();
+    });
+
+    async function loadNews() {
+      try {
+        const q = query(collection(db, "news"), orderBy("createdAt", "desc"));
+        const snap = await getDocs(q);
+        const container = document.getElementById('newsGrid');
+        if (snap.empty) return;
+        container.innerHTML = '';
+        snap.forEach(doc => {
+          const d = doc.data();
+          container.innerHTML += `
+            <div class="news-card">
+              <div class="card-text-body">
+                <span class="news-tag">${d.tag || 'बातमी'}</span>
+                <h3>${d.title}</h3>
+                <p>${d.content}</p>
+                <div class="news-meta">📅 ${d.date || ''} | ✍️ ${d.author || 'संपादक'}</div>
+              </div>
+              ${d.imageUrl ? `<img src="${d.imageUrl}" class="card-photo" alt="${d.title}" onerror="this.style.display='none'">` : ''}
+            </div>`;
+        });
+      } catch(e) { console.log(e); }
+    }
+
+    async function loadEditorial() {
+      try {
+        const q = query(collection(db, "editorial"), orderBy("createdAt", "desc"));
+        const snap = await getDocs(q);
+        const container = document.getElementById('editorialGrid');
+        if (snap.empty) return;
+        container.innerHTML = '';
+        snap.forEach(doc => {
+          const d = doc.data();
+          container.innerHTML += `
+            <div class="editorial-card">
+              <div class="editorial-text-body">
+                <div class="editorial-badge">✒️ संपादकीय</div>
+                <h3>${d.title}</h3>
+                <p>${d.content}</p>
+                <div class="news-meta">📅 ${d.date || ''} | ✍️ ${d.author || 'संपादक'}</div>
+              </div>
+              ${d.imageUrl ? `<img src="${d.imageUrl}" class="card-photo" alt="${d.title}" onerror="this.style.display='none'">` : ''}
+            </div>`;
+        });
+      } catch(e) { console.log(e); }
+    }
+
+    async function loadArticles() {
+      try {
+        const q = query(collection(db, "articles"), orderBy("createdAt", "desc"));
+        const snap = await getDocs(q);
+        const container = document.getElementById('articleList');
+        if (snap.empty) return;
+        container.innerHTML = '';
+        let i = 1;
+        snap.forEach(doc => {
+          const d = doc.data();
+          const num = ['०१','०२','०३','०४','०५','०६','०७','०८','०९','१०'][i-1] || String(i);
+          container.innerHTML += `
+            <div class="article-item">
+              <div class="article-num">${num}</div>
+              <div class="article-body">
+                <h3>${d.title}</h3>
+                <p>${d.content}</p>
+                <div class="news-meta">📅 ${d.date || ''} | ✍️ ${d.author || ''}</div>
+                ${d.imageUrl ? `<img src="${d.imageUrl}" class="article-photo" alt="${d.title}" onerror="this.style.display='none'">` : ''}
+              </div>
+            </div>`;
+          i++;
+        });
+      } catch(e) { console.log(e); }
+    }
+
+    async function loadPapers() {
+      try {
+        const q = query(collection(db, "papers"), orderBy("createdAt", "desc"));
+        const snap = await getDocs(q);
+        const newGrid = document.getElementById('new-papers');
+        const oldGrid = document.getElementById('old-papers');
+        newGrid.innerHTML = ''; oldGrid.innerHTML = '';
+        if (snap.empty) {
+          newGrid.innerHTML = '<p class="empty-msg">Admin Panel मधून PDF add करा</p>';
+          oldGrid.innerHTML = '<p class="empty-msg">जुने पेपर लवकरच उपलब्ध</p>';
+          return;
+        }
+        let hasNew = false, hasOld = false;
+        snap.forEach(doc => {
+          const d = doc.data();
+          const card = `<div class="paper-card">
+            <div class="paper-icon">📄</div>
+            <div class="paper-info"><h4>${d.title}</h4><span>${d.date || ''}</span></div>
+            <a href="${d.pdfUrl}" target="_blank" class="paper-btn">⬇️ डाउनलोड</a>
+          </div>`;
+          if (d.type === 'new') { newGrid.innerHTML += card; hasNew = true; }
+          else { oldGrid.innerHTML += card; hasOld = true; }
+        });
+        if (!hasNew) newGrid.innerHTML = '<p class="empty-msg">नवे पेपर लवकरच</p>';
+        if (!hasOld) oldGrid.innerHTML = '<p class="empty-msg">जुने पेपर लवकरच</p>';
+      } catch(e) { console.log(e); }
+    }
+  </script>
+
+  <style>
+    :root {
+      --saffron: #E8670A; --deep: #1A0A00; --cream: #FDF6EC;
+      --gold: #C9900A; --light: #FFF8F0; --border: #D4A855;
+      --text: #2D1500; --muted: #7A5C3A;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Noto Sans Devanagari', sans-serif; background: var(--cream); color: var(--text); overflow-x: hidden; }
+
+    /* NAV */
+    nav { background: var(--deep); padding: 0 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid var(--saffron); position: sticky; top: 0; z-index: 100; }
+    .nav-logo { font-family: 'Tiro Devanagari Marathi', serif; color: var(--gold); font-size: 1.1rem; padding: 0.8rem 0; }
+    .nav-links { display: flex; list-style: none; }
+    .nav-links a { display: block; color: #ccc; text-decoration: none; padding: 1rem 0.8rem; font-size: 0.78rem; transition: 0.2s; cursor: pointer; }
+    .nav-links a:hover, .nav-links a.active { color: var(--saffron); background: rgba(232,103,10,0.08); }
+    .hamburger { display: none; flex-direction: column; gap: 5px; cursor: pointer; padding: 0.5rem; }
+    .hamburger span { width: 25px; height: 2px; background: var(--gold); }
+
+    /* HERO */
+    .hero { background: var(--deep); padding: 2.5rem 2rem 1.8rem; text-align: center; position: relative; overflow: hidden; }
+    .hero::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(232,103,10,0.15) 0%, transparent 70%); pointer-events: none; }
+    .hero-ornament { font-size: 1.3rem; color: var(--gold); letter-spacing: 4px; margin-bottom: 0.4rem; opacity: 0.7; }
+    .hero h1 { font-family: 'Tiro Devanagari Marathi', serif; font-size: clamp(2rem, 6vw, 3.8rem); color: var(--gold); line-height: 1.2; margin-bottom: 0.4rem; animation: fadeDown 0.8s ease; }
+    .hero-sub { color: #aaa; font-size: 0.9rem; margin-bottom: 1rem; letter-spacing: 2px; text-transform: uppercase; }
+    .hero-divider { width: 80px; height: 2px; background: var(--saffron); margin: 0 auto 0.8rem; }
+    .hero-date { color: var(--saffron); font-size: 0.88rem; font-weight: 600; }
+    @keyframes fadeDown { from { opacity:0; transform:translateY(-20px); } to { opacity:1; transform:translateY(0); } }
+
+    /* LAYOUT */
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
+    section { display: none; }
+    section.active { display: block; padding: 2.5rem 0 2rem; }
+    .section-title { font-family: 'Tiro Devanagari Marathi', serif; font-size: 1.7rem; color: var(--deep); border-left: 4px solid var(--saffron); padding-left: 1rem; margin-bottom: 1.5rem; }
+
+    /* NEWS CARDS — text on top, photo below */
+    .news-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem; }
+    .news-card { background: white; border: 1px solid #e8d5b0; border-top: 4px solid var(--saffron); border-radius: 6px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.05); transition: transform 0.2s, box-shadow 0.2s; display: flex; flex-direction: column; }
+    .news-card:hover { transform: translateY(-3px); box-shadow: 0 6px 24px rgba(0,0,0,0.1); }
+    .card-text-body { padding: 1.2rem; flex: 1; }
+    .card-photo { width: 100%; height: 200px; object-fit: cover; display: block; border-top: 1px solid #f0e0c0; }
+    .news-tag { display: inline-block; background: var(--saffron); color: white; font-size: 0.68rem; padding: 2px 10px; border-radius: 2px; margin-bottom: 0.6rem; font-weight: 700; }
+    .news-card h3 { font-family: 'Tiro Devanagari Marathi', serif; font-size: 1.05rem; line-height: 1.5; margin-bottom: 0.6rem; color: var(--deep); }
+    .news-card p { font-size: 0.88rem; color: var(--muted); line-height: 1.7; }
+    .news-meta { margin-top: 0.8rem; font-size: 0.75rem; color: #aaa; border-top: 1px solid #f0e0c0; padding-top: 0.6rem; }
+
+    /* EDITORIAL — text on top, photo below */
+    .editorial-grid { display: flex; flex-direction: column; gap: 1.5rem; }
+    .editorial-card { background: white; border: 1px solid #e8d5b0; border-left: 5px solid var(--gold); border-radius: 6px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); transition: transform 0.2s; }
+    .editorial-card:hover { transform: translateY(-2px); }
+    .editorial-text-body { padding: 1.5rem; }
+    .editorial-badge { display: inline-block; background: var(--gold); color: white; font-size: 0.7rem; padding: 2px 12px; border-radius: 2px; margin-bottom: 0.7rem; font-weight: 700; }
+    .editorial-card h3 { font-family: 'Tiro Devanagari Marathi', serif; font-size: 1.2rem; color: var(--deep); margin-bottom: 0.6rem; }
+    .editorial-card p { font-size: 0.9rem; color: var(--muted); line-height: 1.8; }
+
+    /* ARTICLES — text on top, photo below */
+    .article-list { display: flex; flex-direction: column; gap: 1.5rem; }
+    .article-item { background: white; border: 1px solid #e8d5b0; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; gap: 1.2rem; padding: 1.5rem; align-items: flex-start; transition: box-shadow 0.2s; }
+    .article-item:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+    .article-num { font-size: 2.5rem; font-weight: 900; color: #f0dfc0; line-height: 1; min-width: 50px; font-family: 'Playfair Display', serif; }
+    .article-body { flex: 1; }
+    .article-body h3 { font-family: 'Tiro Devanagari Marathi', serif; font-size: 1.1rem; color: var(--deep); margin-bottom: 0.5rem; }
+    .article-body p { font-size: 0.88rem; color: var(--muted); line-height: 1.7; }
+    .article-photo { width: 100%; max-height: 220px; object-fit: cover; display: block; border-radius: 4px; margin-top: 1rem; border: 1px solid #f0e0c0; }
+
+    /* PAPERS */
+    .paper-tabs { display: flex; margin-bottom: 2rem; border-bottom: 2px solid var(--border); }
+    .paper-tab { padding: 0.7rem 1.5rem; cursor: pointer; font-weight: 600; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -2px; transition: 0.2s; }
+    .paper-tab.active { color: var(--saffron); border-bottom-color: var(--saffron); }
+    .papers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 1.5rem; }
+    .paper-card { background: white; border: 1px solid #e8d5b0; border-radius: 6px; overflow: hidden; text-align: center; transition: transform 0.2s; }
+    .paper-card:hover { transform: translateY(-3px); }
+    .paper-icon { background: #fff5e8; padding: 2rem 1rem; font-size: 3rem; }
+    .paper-info { padding: 1rem; }
+    .paper-info h4 { font-family: 'Tiro Devanagari Marathi', serif; font-size: 1rem; color: var(--deep); margin-bottom: 0.3rem; }
+    .paper-info span { font-size: 0.78rem; color: var(--muted); }
+    .paper-btn { display: block; margin: 0.8rem auto 1rem; background: var(--saffron); color: white; border: none; padding: 0.5rem 1.2rem; border-radius: 3px; cursor: pointer; font-size: 0.85rem; font-family: 'Noto Sans Devanagari', sans-serif; text-decoration: none; transition: background 0.2s; }
+    .paper-btn:hover { background: var(--gold); }
+    .empty-msg { color: #aaa; text-align: center; padding: 2rem; font-size: 0.9rem; grid-column: 1/-1; }
+
+    /* CONTACT */
+    .contact-wrapper { display: grid; grid-template-columns: 1fr 1.5fr; gap: 3rem; align-items: start; }
+    .contact-info h3 { font-family: 'Tiro Devanagari Marathi', serif; font-size: 1.4rem; color: var(--deep); margin-bottom: 1rem; }
+    .contact-detail { display: flex; gap: 0.8rem; align-items: flex-start; margin-bottom: 1rem; }
+    .contact-detail .icon { font-size: 1.3rem; min-width: 30px; }
+    .contact-detail p { font-size: 0.9rem; color: var(--muted); line-height: 1.6; }
+    .contact-form { background: white; border: 1px solid #e8d5b0; border-top: 4px solid var(--saffron); padding: 2rem; border-radius: 6px; }
+    .contact-form h3 { font-family: 'Tiro Devanagari Marathi', serif; font-size: 1.3rem; color: var(--deep); margin-bottom: 1.5rem; }
+    .form-group { margin-bottom: 1.2rem; }
+    .form-group label { display: block; font-size: 0.88rem; color: var(--muted); margin-bottom: 0.4rem; font-weight: 600; }
+    .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 0.7rem 1rem; border: 1px solid #ddd; border-radius: 4px; font-family: 'Noto Sans Devanagari', sans-serif; font-size: 0.9rem; color: var(--text); background: var(--light); transition: border-color 0.2s; }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline: none; border-color: var(--saffron); }
+    .form-group textarea { resize: vertical; min-height: 120px; }
+    .submit-btn { width: 100%; background: var(--saffron); color: white; border: none; padding: 0.85rem; border-radius: 4px; font-size: 1rem; font-family: 'Noto Sans Devanagari', sans-serif; cursor: pointer; font-weight: 600; transition: background 0.2s; }
+    .submit-btn:hover { background: var(--gold); }
+    .success-msg { display: none; background: #e8f5e9; border: 1px solid #a5d6a7; color: #2e7d32; padding: 1rem; border-radius: 4px; text-align: center; margin-top: 1rem; }
+    .about-box { background: white; border: 1px solid #e8d5b0; border-radius: 6px; padding: 2rem; line-height: 1.9; font-size: 0.95rem; margin-bottom: 2rem; }
+
+    footer { background: var(--deep); color: #aaa; text-align: center; padding: 2rem; margin-top: 2rem; border-top: 3px solid var(--saffron); }
+    footer .footer-logo { font-family: 'Tiro Devanagari Marathi', serif; font-size: 1.4rem; color: var(--gold); margin-bottom: 0.5rem; }
+    footer p { font-size: 0.85rem; }
+
+    @media(max-width: 768px) {
+      .nav-links { display: none; flex-direction: column; position: absolute; top: 100%; left: 0; right: 0; background: var(--deep); border-top: 1px solid #333; }
+      .nav-links.open { display: flex; }
+      .hamburger { display: flex; }
+      nav { position: relative; }
+      .contact-wrapper { grid-template-columns: 1fr; }
+      .article-item { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">📰 साप्ताहिक श्रीमत दर्शन</div>
+  <ul class="nav-links" id="navLinks">
+    <li><a onclick="showSection('home')" class="active" id="nav-home">🏠 मुख्यपृष्ठ</a></li>
+    <li><a onclick="showSection('editorial')" id="nav-editorial">✒️ संपादकीय</a></li>
+    <li><a onclick="showSection('articles')" id="nav-articles">📝 लेख</a></li>
+    <li><a onclick="showSection('papers')" id="nav-papers">📄 पेपर्स</a></li>
+    <li><a onclick="showSection('contact')" id="nav-contact">✉️ संपर्क</a></li>
+  </ul>
+  <div class="hamburger" onclick="toggleMenu()"><span></span><span></span><span></span></div>
+</nav>
+
+<div class="hero">
+  <div class="hero-ornament">॥ श्री ॥</div>
+  <h1>साप्ताहिक श्रीमत दर्शन</h1>
+  <p class="hero-sub">Saptahik Shrimat Darshan</p>
+  <div class="hero-divider"></div>
+  <p class="hero-date" id="heroDate"></p>
+</div>
+
+<!-- HOME -->
+<section id="home" class="active">
+  <div class="container">
+    <h2 class="section-title">या आठवड्यातील बातम्या</h2>
+    <div class="news-grid" id="newsGrid">
+      <div class="news-card">
+        <div class="card-text-body">
+          <span class="news-tag">स्वागत</span>
+          <h3>वेबसाईटवर आपले स्वागत!</h3>
+          <p>Admin Panel मधून बातम्या फोटोसह add करा — येथे दिसतील.</p>
+          <div class="news-meta">📅 आजचा दिवस | ✍️ संपादक मंडळ</div>
+        </div>
+      </div>
+    </div>
+    <h2 class="section-title">आमच्याबद्दल</h2>
+    <div class="about-box">
+      <p><strong>साप्ताहिक श्रीमत दर्शन</strong> हे एक मराठी साप्ताहिक प्रकाशन आहे. दर आठवड्याला महत्त्वाच्या बातम्या, लेख आणि माहिती वाचकांपर्यंत पोहोचवणे हे आमचे ध्येय आहे.</p>
+      <br><p>या वेबसाईटवर जुने व नवे पेपर्स PDF स्वरूपात उपलब्ध आहेत. तसेच विविध विषयांवरील लेख, संपादकीय व बातम्या येथे प्रकाशित केल्या जातात.</p>
+    </div>
+  </div>
+</section>
+
+<!-- EDITORIAL -->
+<section id="editorial">
+  <div class="container">
+    <h2 class="section-title">संपादकीय</h2>
+    <div class="editorial-grid" id="editorialGrid">
+      <div class="editorial-card">
+        <div class="editorial-text-body">
+          <div class="editorial-badge">✒️ संपादकीय</div>
+          <h3>Admin Panel मधून संपादकीय add करा</h3>
+          <p>फोटोसह संपादकीय लेख add करा — येथे दिसतील.</p>
+          <div class="news-meta">✍️ Admin Panel वापरा</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ARTICLES -->
+<section id="articles">
+  <div class="container">
+    <h2 class="section-title">लेख व मजकूर</h2>
+    <div class="article-list" id="articleList">
+      <div class="article-item">
+        <div class="article-num">०१</div>
+        <div class="article-body">
+          <h3>Admin Panel मधून लेख add करा</h3>
+          <p>फोटोसह लेख add करा — येथे automatically दिसतील.</p>
+          <div class="news-meta">✍️ Admin Panel वापरा</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PAPERS -->
+<section id="papers">
+  <div class="container">
+    <h2 class="section-title">PDF पेपर्स</h2>
+    <div class="paper-tabs">
+      <div class="paper-tab active" onclick="showTab('new',this)">नवे पेपर</div>
+      <div class="paper-tab" onclick="showTab('old',this)">जुने पेपर</div>
+    </div>
+    <div id="new-papers" class="papers-grid"><p class="empty-msg">Admin Panel मधून PDF add करा</p></div>
+    <div id="old-papers" class="papers-grid" style="display:none"><p class="empty-msg">जुने पेपर लवकरच उपलब्ध</p></div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact">
+  <div class="container">
+    <h2 class="section-title">आमच्याशी संपर्क करा</h2>
+    <div class="contact-wrapper">
+      <div class="contact-info">
+        <h3>संपर्क माहिती</h3>
+        <div class="contact-detail"><span class="icon">📍</span><p>आपला पत्ता येथे लिहा,<br>महाराष्ट्र, भारत</p></div>
+        <div class="contact-detail"><span class="icon">📞</span><p>+९१ XXXXX XXXXX</p></div>
+        <div class="contact-detail"><span class="icon">✉️</span><p>shrimatdarshan@gmail.com</p></div>
+        <div class="contact-detail"><span class="icon">🕐</span><p>सोमवार ते शनिवार<br>सकाळी ९:०० ते संध्याकाळी ६:००</p></div>
+      </div>
+      <div class="contact-form">
+        <h3>संदेश पाठवा</h3>
+        <div class="form-group"><label>आपले पूर्ण नाव *</label><input type="text" id="cname" placeholder="नाव लिहा"></div>
+        <div class="form-group"><label>मोबाईल नंबर</label><input type="tel" id="cphone" placeholder="मोबाईल नंबर"></div>
+        <div class="form-group"><label>ईमेल पत्ता</label><input type="email" id="cemail" placeholder="ईमेल पत्ता"></div>
+        <div class="form-group"><label>विषय *</label>
+          <select id="csubject"><option value="">-- विषय निवडा --</option><option>लेख पाठवणे</option><option>बातमी कळवणे</option><option>PDF समस्या</option><option>सदस्यता</option><option>इतर</option></select>
+        </div>
+        <div class="form-group"><label>संदेश *</label><textarea id="cmessage" placeholder="आपला संदेश येथे लिहा..."></textarea></div>
+        <button class="submit-btn" onclick="submitForm()">📨 संदेश पाठवा</button>
+        <div class="success-msg" id="successMsg">✅ आपला संदेश पोहोचला! आम्ही लवकरच संपर्क करू.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-logo">साप्ताहिक श्रीमत दर्शन</div>
+  <p>© २०२५ सर्व हक्क राखीव | दर आठवड्याला नवीन अंक</p>
+</footer>
+
+<script>
+  const months=['जानेवारी','फेब्रुवारी','मार्च','एप्रिल','मे','जून','जुलै','ऑगस्ट','सप्टेंबर','ऑक्टोबर','नोव्हेंबर','डिसेंबर'];
+  const days=['रविवार','सोमवार','मंगळवार','बुधवार','गुरुवार','शुक्रवार','शनिवार'];
+  const d=new Date();
+  document.getElementById('heroDate').textContent=`${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  function showSection(id){document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));document.querySelectorAll('.nav-links a').forEach(a=>a.classList.remove('active'));document.getElementById(id).classList.add('active');document.getElementById('nav-'+id).classList.add('active');document.getElementById('navLinks').classList.remove('open');window.scrollTo({top:0,behavior:'smooth'});}
+  function toggleMenu(){document.getElementById('navLinks').classList.toggle('open');}
+  function showTab(type,el){document.querySelectorAll('.paper-tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');document.getElementById('new-papers').style.display=type==='new'?'grid':'none';document.getElementById('old-papers').style.display=type==='old'?'grid':'none';}
+  function submitForm(){const name=document.getElementById('cname').value.trim();const subject=document.getElementById('csubject').value;const message=document.getElementById('cmessage').value.trim();if(!name||!subject||!message){alert('⚠️ कृपया सर्व आवश्यक माहिती भरा');return;}document.getElementById('successMsg').style.display='block';['cname','cphone','cemail','cmessage'].forEach(id=>document.getElementById(id).value='');document.getElementById('csubject').value='';setTimeout(()=>document.getElementById('successMsg').style.display='none',5000);}
+</script>
+</body>
+</html>
